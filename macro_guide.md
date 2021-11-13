@@ -101,8 +101,6 @@ Lean.ParserDescr.node `Lean.Parser.Term.quot 1024
   (Lean.ParserDescr.binary `andthen (Lean.ParserDescr.symbol "`(binderterm|")
     (Lean.ParserDescr.binary `andthen (Lean.ParserDescr.unary `incQuotDepth (Lean.ParserDescr.cat `binderterm 0))
       (Lean.ParserDescr.symbol ")")))
-
-[Elab.definition.scc] [binderterm.quot]
 -/
 ```
 
@@ -135,7 +133,8 @@ Lean.ParserDescr.node `tacticRwa__ 1022
 パーサーに名前を手動で付ける事も出来:
 
 ```
-syntax (name := introv) "introv " (colGt ident)* : tactic指定する
+set_option trace.Elab.definition true in
+syntax (name := introv) "introv " (colGt ident)* : tactic
 
 [Elab.definition.body] introv : Lean.ParserDescr :=
 Lean.ParserDescr.node `introv 1022
@@ -203,7 +202,7 @@ macro "exfalso" : tactic => `(apply False.elim)
 /-
 拡張の出力：
 
-[Elab.definition.body] myMacro._@._hyg.320 : Lean.Macro :=
+[Elab.definition.body] _aux___macroRules_tacticExfalso_1 : Lean.Macro :=
 fun x =>
   let discr := x;
   /- This is where Lean tries to actually identify that it's an invocation of the exfalso tactic -/
@@ -216,9 +215,9 @@ fun x =>
       let scp ← Lean.getCurrMacroScope
       let mainModule ← Lean.getMainModule
       pure
-          (Lean.Syntax.node `Lean.Parser.Tactic.seq1
-            #[Lean.Syntax.node `null
-                #[Lean.Syntax.node `Lean.Parser.Tactic.apply
+          (Lean.Syntax.node Lean.SourceInfo.none `Lean.Parser.Tactic.seq1
+            #[Lean.Syntax.node Lean.SourceInfo.none `null
+                #[Lean.Syntax.node Lean.SourceInfo.none `Lean.Parser.Tactic.apply
                     #[Lean.Syntax.atom info "apply",
                       Lean.Syntax.ident info (String.toSubstring "False.elim")
                         (Lean.addMacroScope mainModule `False.elim scp) [(`False.elim, [])]]]])
@@ -247,16 +246,8 @@ exact f h
 syntax (name := myExfalsoParser) "myExfalso" : tactic
 
 @[macro myExfalsoParser] def implMyExfalso : Lean.Macro :=
-fun stx =>
-  do
-    let info ← Lean.MonadRef.mkInfoFromRefPos
-    let scp ← Lean.getCurrMacroScope
-    let mainModule ← Lean.getMainModule
-    pure
-        (Lean.Syntax.node `Lean.Parser.Tactic.apply
-          #[Lean.Syntax.atom info "apply",
-            Lean.Syntax.ident info (String.toSubstring "False.elim") (Lean.addMacroScope mainModule `False.elim scp)
-              [(`False.elim, [])]])
+  fun stx => Lean.mkNode `Lean.Parser.Tactic.apply
+    #[Lean.mkAtomFrom stx "apply", Lean.mkCIdentFrom stx ``False.elim]
 
 example (p : Prop) (h : p) (f : p -> False) : 3 = 2 := by
 myExfalso
